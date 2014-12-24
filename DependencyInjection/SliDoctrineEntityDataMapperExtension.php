@@ -37,7 +37,6 @@ class SliDoctrineEntityDataMapperExtension extends Extension
             new Reference('sli.aux.javabeans_ofm'),
             new Reference('sli_doctrine_entity_data_mapper.mapping.annotation_method_invocation_parameters_provider'),
             new Reference('sli_doctrine_entity_data_mapper.complex_field_value_converters_provider'),
-//            new Reference(''),
         );
 
         $container->setDefinition(

@@ -1,0 +1,33 @@
+framework:
+    secret:          Hell yeah!
+    router:          { resource: "%kernel.root_dir%/config/routing.yml" }
+    csrf_protection: true
+    session:         ~
+    templating:
+        engines: ['twig']
+
+# Twig Configuration
+twig:
+    debug:            %kernel.debug%
+    strict_variables: %kernel.debug%
+
+# Doctrine Configuration
+doctrine:
+    dbal:
+        driver:   pdo_mysql
+        host:     127.0.0.1
+        port:     3306
+        dbname:   sli_doctrineentitydatamapper
+        user:     root
+        password:
+        charset:  UTF8
+
+    orm:
+        auto_generate_proxy_classes: true
+        auto_mapping: true
+
+sli_doctrine_entity_data_mapper:
+    preferences_provider_formats:
+        date: 'd*m*y'
+        datetime: 'd*m*y H:i'
+        month: 'm*Y'

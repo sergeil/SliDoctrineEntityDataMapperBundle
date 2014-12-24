@@ -1,0 +1,35 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <parameters>
+        <parameter key="sli_doctrine_entity_data_mapper.example.class">Sli\DoctrineEntityDataMapperBundle\Example</parameter>
+    </parameters>
+
+    <services>
+        <!--
+            sli_doctrine_entity_data_mapper.preferences.semantic_provider
+            service is registered in DependencyInjection\SliDoctrineEntityDataMapperExtension class
+        -->
+
+        <service id="sli_doctrine_entity_data_mapper.mapping.annotation_method_invocation_parameters_provider"
+                 class="Sli\DoctrineEntityDataMapperBundle\Mapping\MethodInvocation\AnnotationMethodInvocationParametersProvider">
+            <argument type="service" id="service_container" />
+        </service>
+
+        <!--<service id="sli_doctrine_entity_data_mapper.mapping.entity_data_mapper"-->
+                 <!--class="Sli\DoctrineEntityDataMapperBundle\Mapping\EntityDataMapperService">-->
+
+            <!--<argument type="service" id="doctrine.orm.entity_manager" />-->
+            <!--&lt;!&ndash; see DependencyInjection\SliDoctrineEntityDataMapperExtension &ndash;&gt;-->
+            <!--<argument type="service" id="%sli_doctrine_entity_data_mapper.mapping.preferences_provider_service_id%" />-->
+            <!--<argument type="service" id="sli.aux.javabeans_ofm" />-->
+
+            <!--<argument type="service" id="sli_doctrine_entity_data_mapper.mapping.annotation_method_invocation_parameters_provider" />-->
+            <!--<argument type="service" id="sli_doctrine_entity_data_mapper.complex_field_value_converters" />-->
+        <!--</service>-->
+
+    </services>
+</container>

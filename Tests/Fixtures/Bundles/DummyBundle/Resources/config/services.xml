@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <services>
+        <service id="sli_dummy_bundle.contributions.converters_provider"
+                 class="Sli\DoctrineEntityDataMapperBundle\Tests\Fixtures\Bundles\DummyBundle\Contributions\ConvertersProvider">
+
+            <tag name="sli_doctrine_entity_data_mapper.complex_field_value_converters_provider" />
+        </service>
+    </services>
+</container>

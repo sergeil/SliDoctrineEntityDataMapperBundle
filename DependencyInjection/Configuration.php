@@ -23,6 +23,7 @@ class Configuration implements ConfigurationInterface
         $rootNode
             ->children()
                 ->arrayNode('preferences_provider_formats')
+                    ->addDefaultsIfNotSet()
                     ->children()
                         ->scalarNode('date')->defaultValue('d.m.y')->end()
                         ->scalarNode('datetime')->defaultValue('d.m.y H:i')->end()

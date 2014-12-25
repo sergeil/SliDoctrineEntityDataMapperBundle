@@ -19,7 +19,7 @@
         "symfony/symfony": "~2.0",
         "doctrine/orm": "~2.2,>=2.2.3",
         "doctrine/doctrine-bundle": "~1.2",
-        "sergeil/aux-bundle": "~1.0",
+        "sergeil/aux-bundle": "~1.1",
         "sergeil/expander-bundle": "~1.0"
     },
     "require-dev": {

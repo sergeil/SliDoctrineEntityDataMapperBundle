@@ -15,27 +15,33 @@ class AnnotationMethodInvocationParametersProvider implements MethodInvocationPa
 {
     private $ar;
 
+    /**
+     * @param ContainerInterface $container
+     */
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
         $this->ar = new AnnotationReader();
     }
 
-    public function getParameters($fqcn, $methodName)
+    /**
+     * @inheritDoc
+     */
+    public function getParameters($className, $methodName)
     {
         try {
-            return $this->doGetParameters($fqcn, $methodName);
+            return $this->doGetParameters($className, $methodName);
         } catch (\Exception $e) {
             throw new \RuntimeException(
-                "Unable to properly handle DataMapping\\Params annotation on $fqcn::$methodName.", null, $e
+                "Unable to properly handle DataMapping\\Params annotation on $className::$methodName.", null, $e
             );
         }
     }
 
-    protected function doGetParameters($fqcn, $methodName)
+    protected function doGetParameters($className, $methodName)
     {
         /* @var ParamsAnn $ann */
-        $ann = $this->ar->getMethodAnnotation(new \ReflectionMethod($fqcn, $methodName), ParamsAnn::clazz());
+        $ann = $this->ar->getMethodAnnotation(new \ReflectionMethod($className, $methodName), ParamsAnn::clazz());
         if ($ann) {
             if (!is_array($ann->value)) {
                 throw new \RuntimeException('Value of the annotation must always be an array!');
@@ -49,6 +55,7 @@ class AnnotationMethodInvocationParametersProvider implements MethodInvocationPa
                     $result[] = $this->container->get($serviceName, ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE);
                 }
             }
+
             return $result;
         } else {
             return array();

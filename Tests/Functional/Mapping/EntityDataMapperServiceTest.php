@@ -125,6 +125,13 @@ class Group
      */
     public $name;
 
+    /**
+     * Property with no setter method.
+     *
+     * @ORM\Column(type="integer")
+     */
+    public $usersCount = 0;
+
     public function __construct($name)
     {
         $this->name = $name;
@@ -312,5 +319,18 @@ class EntityDataMapperServiceTest extends FunctionalTestCase
         $this->mapper->mapEntity($user, $userParams, array_keys($userParams));
 
         $this->assertEquals('John Doe', $user->fullname);
+    }
+
+    public function testMapEntity_propertyWithNoSetterMethod()
+    {
+        $group = new Group('Foo');
+
+        $groupParams = array(
+            'usersCount' => 5
+        );
+
+        $this->mapper->mapEntity($group, $groupParams, array_keys($groupParams));
+
+        $this->assertEquals(5, $group->usersCount);
     }
 }

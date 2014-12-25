@@ -2,6 +2,7 @@
 
 namespace Sli\DoctrineEntityDataMapperBundle\Mapping;
 
+use Doctrine\Common\Util\Inflector;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Sli\DoctrineEntityDataMapperBundle\Mapping\MethodInvocation\MethodInvocationParametersProviderInterface;
@@ -159,6 +160,7 @@ class EntityDataMapperService implements EntityDataMapperInterface
             if (!in_array($fieldName, $allowedFields) || 'id' == $fieldName) { // ID is always generated dynamically
                 continue;
             }
+
             if (isset($params[$fieldName])) {
                 $value = $params[$fieldName];
                 $mapping = $metadata->getFieldMapping($fieldName);
@@ -172,7 +174,14 @@ class EntityDataMapperService implements EntityDataMapperInterface
                 // an exception if needed
                 if (!($isNumber && '' === $value)) {
                     try {
-                        $methodParams = $this->paramsProvider->getParameters(get_class($entity), $this->fm->formatSetterName($fieldName));
+                        $setterMethodName = $this->fm->formatSetterName($fieldName);
+
+                        $methodParams = array();
+                        if (in_array($setterMethodName, $entityMethods)) {
+                            $methodParams = $this->paramsProvider->getParameters(
+                                get_class($entity), $this->fm->formatSetterName($fieldName)
+                            );
+                        }
 
                         $convertedValue = null;
                         if (is_object($value) || is_array($value)) {
@@ -186,8 +195,7 @@ class EntityDataMapperService implements EntityDataMapperInterface
                             $convertedValue = $this->convertValue($value, $mapping['type']);
                         }
 
-                        $methodParams = array_merge(array($convertedValue), $methodParams);
-                        $this->fm->set($entity, $fieldName, $methodParams);
+                        $this->setFieldValue($entity, $fieldName, array_merge(array($convertedValue), $methodParams));
                     } catch (\Exception $e) {
                         throw new \RuntimeException(
                             "Something went wrong during mapping of a scalar field '$fieldName' - ".$e->getMessage(), null, $e
@@ -204,29 +212,36 @@ class EntityDataMapperService implements EntityDataMapperInterface
                 continue;
             }
 
-            if (isset($params[$fieldName]) && null !== $params[$fieldName]) {
+            if (isset($params[$fieldName])) {
                 if (in_array($mapping['type'], array(CMI::ONE_TO_ONE, CMI::MANY_TO_ONE))) {
                     $rawValue = $params[$fieldName];
 
-                    $methodParams = $this->paramsProvider->getParameters(get_class($entity), $this->fm->formatSetterName($fieldName));
+                    $setterMethodName = $this->fm->formatSetterName($fieldName);
+
+                    $methodParams = array();
+                    if (in_array($setterMethodName, $entityMethods)) {
+                        $methodParams = $this->paramsProvider->getParameters(
+                            get_class($entity), $this->fm->formatSetterName($fieldName)
+                        );
+                    }
 
                     if ('-' == $rawValue) {
-                        $this->fm->set($entity, $fieldName, array_merge(array(null), $methodParams));
+                        $this->setFieldValue($entity, $fieldName, array_merge(array(null), $methodParams));
                     } else {
                         $value = $this->em->getRepository($mapping['targetEntity'])->find($rawValue);
                         if ($value) {
-                            $this->fm->set($entity, $fieldName, array_merge(array($value), $methodParams));
+                            $this->setFieldValue($entity, $fieldName, array_merge(array($value), $methodParams));
                         }
                     }
                 } else { // one_to_many, many_to_many
                     $rawValue = $params[$fieldName];
                     $col = $metadata->getFieldValue($entity, $fieldName);
 
-                    // if it is a new entity ( you should remember, the entity's constructor is not invoked )
+                    // if it is a new entity (you should remember, the entity's constructor is not invoked)
                     // it will have no collection initialized, because this usually happens in the constructor
                     if (!$col) {
                         $col = new ArrayCollection();
-                        $this->fm->set($entity, $fieldName, array($col));
+                        $this->setFieldValue($entity, $fieldName, array($col));
                     }
 
                     $oldIds = Toolkit::extractIds($col);
@@ -242,7 +257,7 @@ class EntityDataMapperService implements EntityDataMapperInterface
                      * do, then they will be used, otherwise we will try to manage
                      * relation manually
                      */
-                    $removeMethod = 'remove'.ucfirst(Toolkit::singlifyWord($fieldName));
+                    $removeMethod = 'remove' . ucfirst(Inflector::singularize($fieldName));
                     if (in_array($removeMethod, $entityMethods) && count($idsToDelete) > 0) {
                         foreach ($entitiesToDelete as $refEntity) {
                             $methodParams = array_merge(
@@ -260,13 +275,13 @@ class EntityDataMapperService implements EntityDataMapperInterface
                                     $this->synchronizeReferencedCollection($mapping, $refEntity, $entity, 'removeElement');
                                 } else {
                                     // nulling the other side of relation
-                                    $this->fm->set($refEntity, $mapping['mappedBy'], array(null));
+                                    $this->setFieldValue($refEntity, $mapping['mappedBy'], array(null));
                                 }
                             }
                         }
                     }
 
-                    $addMethod = 'add'.ucfirst(Toolkit::singlifyWord($fieldName));
+                    $addMethod = 'add' . ucfirst(Inflector::singularize($fieldName));
                     if (in_array($addMethod, $entityMethods) && count($idsToAdd) > 0) {
                         foreach ($entitiesToAdd as $refEntity) {
                             $methodParams = array_merge(
@@ -283,13 +298,26 @@ class EntityDataMapperService implements EntityDataMapperInterface
                                 if (CMI::MANY_TO_MANY == $mapping['type']) {
                                     $this->synchronizeReferencedCollection($mapping, $refEntity, $entity, 'add');
                                 } else {
-                                    $this->fm->set($refEntity, $mapping['mappedBy'], array($entity));
+                                    $this->setFieldValue($refEntity, $mapping['mappedBy'], array($entity));
                                 }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    private function setFieldValue($object, $fieldName, $value)
+    {
+        $methodName = $this->fm->formatSetterName($fieldName);
+
+        if (in_array($methodName, get_class_methods(get_class($object)))) {
+            $this->fm->set($object, $fieldName, $value);
+        } else {
+            // when a method exists then we need a value to be array, but when we directly inject
+            // a value to a field then it is not needed
+            Toolkit::setPropertyValue($object, $fieldName, $value[0]);
         }
     }
 

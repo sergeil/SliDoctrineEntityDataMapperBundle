@@ -7,5 +7,11 @@ namespace Sli\DoctrineEntityDataMapperBundle\Mapping\MethodInvocation;
  */
 interface MethodInvocationParametersProviderInterface
 {
-    public function getParameters($fqcn, $methodName);
+    /**
+     * @param string $className
+     * @param string $methodName
+     *
+     * @return array
+     */
+    public function getParameters($className, $methodName);
 }

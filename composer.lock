@@ -4,7 +4,7 @@
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "85e5ab8420cf6e03ce3ca006aca51252",
+    "hash": "355dbb16dfcbbdb21d4b35ed40d64b53",
     "packages": [
         {
             "name": "doctrine/annotations",
@@ -805,17 +805,17 @@
         },
         {
             "name": "sergeil/aux-bundle",
-            "version": "v1.0.0",
+            "version": "v1.1.0",
             "target-dir": "Sli/AuxBundle",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sergeil/SliAuxBundle.git",
-                "reference": "351a648dea14dfa9aa6ee8e88b9c749a58c6a069"
+                "reference": "0dc8b9b233b42d94e4bc8fa69118a8fef0f17e15"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sergeil/SliAuxBundle/zipball/351a648dea14dfa9aa6ee8e88b9c749a58c6a069",
-                "reference": "351a648dea14dfa9aa6ee8e88b9c749a58c6a069",
+                "url": "https://api.github.com/repos/sergeil/SliAuxBundle/zipball/0dc8b9b233b42d94e4bc8fa69118a8fef0f17e15",
+                "reference": "0dc8b9b233b42d94e4bc8fa69118a8fef0f17e15",
                 "shasum": ""
             },
             "require": {
@@ -835,7 +835,7 @@
             "authors": [
                 {
                     "name": "Sergei Lissovski",
-                    "email": "sergei.lissovski@modera.org",
+                    "email": "sergei.lissovski@gmail.com",
                     "homepage": "http://sergei.lissovski.org/"
                 }
             ],
@@ -844,7 +844,7 @@
             "keywords": [
                 "utils"
             ],
-            "time": "2014-06-04 13:04:27"
+            "time": "2014-12-25 12:51:40"
         },
         {
             "name": "sergeil/expander-bundle",

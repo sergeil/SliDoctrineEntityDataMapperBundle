@@ -76,7 +76,7 @@ Update your AppKernel class and add this:
 
 ## Documentation
 
-TODO
+See `Resources/doc/index.md`.
 
 ## Licensing
 

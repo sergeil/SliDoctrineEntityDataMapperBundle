@@ -213,44 +213,93 @@ class EntityDataMapperService implements EntityDataMapperInterface
             }
 
             if (isset($params[$fieldName])) {
-                if (in_array($mapping['type'], array(CMI::ONE_TO_ONE, CMI::MANY_TO_ONE))) {
-                    $rawValue = $params[$fieldName];
+                $rawValue = $params[$fieldName];
 
-                    $setterMethodName = $this->fm->formatSetterName($fieldName);
+                $setterMethodName = $this->fm->formatSetterName($fieldName);
+                $isSetterExist = in_array($setterMethodName, $entityMethods);
+                $resetRequired = '-' == $rawValue;
 
-                    $methodParams = array();
-                    if (in_array($setterMethodName, $entityMethods)) {
+                $thisSideRelation = new Relation($entity, $fieldName, $this->em);
+
+                if ($thisSideRelation->isToOne()) {
+                    if ($isSetterExist) {
                         $methodParams = $this->paramsProvider->getParameters(
                             get_class($entity), $this->fm->formatSetterName($fieldName)
                         );
-                    }
 
-                    if ('-' == $rawValue) {
-                        $this->setFieldValue($entity, $fieldName, array_merge(array(null), $methodParams));
+                        if ($resetRequired) {
+                            $methodParams = array_merge(array(null), $methodParams);
+                        }
+
+                        $this->fm->set($entity, $fieldName, $methodParams);
                     } else {
-                        $value = $this->em->getRepository($mapping['targetEntity'])->find($rawValue);
-                        if ($value) {
-                            $this->setFieldValue($entity, $fieldName, array_merge(array($value), $methodParams));
+                        if ($thisSideRelation->isBidirectional()) {
+                            $otherSideRelation = $thisSideRelation->getAssociatedFieldRelation();
+                            $otherSideRelationValue = $thisSideRelation->getValue($entity);
+
+                            if ($resetRequired) {
+                                // only if entity exists then
+                                if ($otherSideRelationValue) {
+                                    if ($thisSideRelation->isOneToOne()) {
+                                        // nulling the other side of relation
+                                        $otherSideRelation->setValue($otherSideRelationValue, null);
+                                    } else { // many_to_one
+                                        $otherSideRelationValue = $thisSideRelation->getValue($entity);
+
+                                        /* @var Collection $thisSideCollection */
+                                        $thisSideCollection = $otherSideRelation->getValue($otherSideRelationValue);
+                                        $thisSideCollection->removeElement($entity);
+                                    }
+                                }
+
+                                $thisSideRelation->setValue($entity, null);
+                            } else {
+                                $referencedEntity = $thisSideRelation->findTargetEntity($rawValue, $this->em);
+
+                                if ($thisSideRelation->isOneToOne()) {
+                                    $otherSideRelation->setValue($referencedEntity, $entity);
+                                } else { // many_to_one
+                                    $otherSideRelationValue = $thisSideRelation->getValue($entity);
+
+                                    // removing from old collection:
+                                    /* @var Collection $oldCollection */
+                                    $oldCollection = $otherSideRelation->getValue($otherSideRelationValue);
+                                    $oldCollection->removeElement($entity);
+
+                                    // and adding to a new one:
+                                    /* @var Collection $newCollection */
+                                    $newCollection = $otherSideRelation->getValue($referencedEntity);
+                                    $newCollection->add($entity);
+                                }
+
+                                $thisSideRelation->setValue($entity, $referencedEntity);
+                            }
+                        } else {
+                            $newValue = $resetRequired ? null : $thisSideRelation->findTargetEntity($rawValue, $this->em);
+
+                            $thisSideRelation->setValue($entity, $newValue);
                         }
                     }
                 } else { // one_to_many, many_to_many
-                    $rawValue = $params[$fieldName];
-                    $col = $metadata->getFieldValue($entity, $fieldName);
+                    $thisSideCollection = $metadata->getFieldValue($entity, $fieldName);
 
                     // if it is a new entity (you should remember, the entity's constructor is not invoked)
                     // it will have no collection initialized, because this usually happens in the constructor
-                    if (!$col) {
-                        $col = new ArrayCollection();
-                        $this->setFieldValue($entity, $fieldName, array($col));
+                    if (!$thisSideCollection) {
+                        $thisSideCollection = new ArrayCollection();
+
+                        $metadata->setFieldValue($entity, $fieldName, $thisSideCollection);
                     }
 
-                    $oldIds = Toolkit::extractIds($col);
+                    $oldIds = Toolkit::extractIds($thisSideCollection);
                     $newIds = is_array($rawValue) ? $rawValue : explode(', ', $rawValue);
                     $idsToDelete = array_diff($oldIds, $newIds);
                     $idsToAdd = array_diff($newIds, $oldIds);
 
                     $entitiesToDelete = $this->getEntitiesByIds($idsToDelete, $mapping['targetEntity']);
                     $entitiesToAdd = $this->getEntitiesByIds($idsToAdd, $mapping['targetEntity']);
+
+                    $thisSideRelation = new Relation($entity, $fieldName, $this->em);
 
                     /*
                      * At first it will be checked if removeXXX/addXXX methods exist, if they
@@ -268,13 +317,14 @@ class EntityDataMapperService implements EntityDataMapperInterface
                         }
                     } else {
                         foreach ($entitiesToDelete as $refEntity) {
-                            if ($col->contains($refEntity)) {
-                                $col->removeElement($refEntity);
+                            if ($thisSideCollection->contains($refEntity)) {
+                                $thisSideCollection->removeElement($refEntity);
 
                                 if (CMI::MANY_TO_MANY == $mapping['type']) {
-                                    $this->synchronizeReferencedCollection($mapping, $refEntity, $entity, 'removeElement');
-                                } else {
-                                    // nulling the other side of relation
+                                    $otherSideCollection = $thisSideRelation->getAssociatedFieldRelation()->getValue($refEntity);
+                                    $otherSideCollection->removeElement($entity);
+                                } else { // ONE_TO_MANY
+                                    // nulling the OTHER SIDE of relation
                                     $this->setFieldValue($refEntity, $mapping['mappedBy'], array(null));
                                 }
                             }
@@ -292,11 +342,12 @@ class EntityDataMapperService implements EntityDataMapperInterface
                         }
                     } else {
                         foreach ($entitiesToAdd as $refEntity) {
-                            if (!$col->contains($refEntity)) {
-                                $col->add($refEntity);
+                            if (!$thisSideCollection->contains($refEntity)) {
+                                $thisSideCollection->add($refEntity);
 
                                 if (CMI::MANY_TO_MANY == $mapping['type']) {
-                                    $this->synchronizeReferencedCollection($mapping, $refEntity, $entity, 'add');
+                                    $otherSideCollection = $thisSideRelation->getAssociatedFieldRelation()->getValue($refEntity);
+                                    $otherSideCollection->add($entity);
                                 } else {
                                     $this->setFieldValue($refEntity, $mapping['mappedBy'], array($entity));
                                 }
@@ -321,31 +372,13 @@ class EntityDataMapperService implements EntityDataMapperInterface
         }
     }
 
-    private function synchronizeReferencedCollection(array $fieldMapping, $refEntity, $owningEntity, $methodName)
-    {
-        $referencedEntityMeta = $this->em->getClassMetadata(get_class($refEntity));
-
-        // bidirectional
-        if (null !== $fieldMapping['mappedBy'] && $referencedEntityMeta->hasAssociation($fieldMapping['mappedBy'])) {
-            $inversedCol = $referencedEntityMeta->getFieldValue($refEntity, $fieldMapping['mappedBy']);
-            if ($inversedCol instanceof Collection) {
-                $inversedCol->{$methodName}($owningEntity);
-            }
-        } else if (null !== $fieldMapping['inversedBy'] && $referencedEntityMeta->hasAssociation($fieldMapping['inversedBy'])) {
-            $inversedCol = $referencedEntityMeta->getFieldValue($refEntity, $fieldMapping['inversedBy']);
-            if ($inversedCol instanceof Collection) {
-                $inversedCol->{$methodName}($owningEntity);
-            }
-        }
-    }
-
-    private function getEntitiesByIds(array $ids, $entityFqcn)
+    private function getEntitiesByIds(array $ids, $entityClass)
     {
         if (count($ids) == 0) {
             return array();
         }
 
-        return $this->em->getRepository($entityFqcn)->findBy(array(
+        return $this->em->getRepository($entityClass)->findBy(array(
             'id' => $ids
         ));
     }

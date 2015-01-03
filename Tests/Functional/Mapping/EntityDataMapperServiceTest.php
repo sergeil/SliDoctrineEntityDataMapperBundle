@@ -4,186 +4,41 @@ namespace Sli\DoctrineEntityDataMapperBundle\Tests\Functional\Mapping;
 
 use Doctrine\ORM\Tools\SchemaTool;
 use Modera\FoundationBundle\Testing\FunctionalTestCase;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\ORM\Mapping as ORM;
 use Sli\AuxBundle\Util\Toolkit;
 use Sli\DoctrineEntityDataMapperBundle\Mapping\EntityDataMapperService;
+use Sli\DoctrineEntityDataMapperBundle\Tests\Fixtures\Group;
+use Sli\DoctrineEntityDataMapperBundle\Tests\Fixtures\Insurance;
+use Sli\DoctrineEntityDataMapperBundle\Tests\Fixtures\Portfolio;
+use Sli\DoctrineEntityDataMapperBundle\Tests\Fixtures\Project;
+use Sli\DoctrineEntityDataMapperBundle\Tests\Fixtures\User;
+use Sli\DoctrineEntityDataMapperBundle\Tests\Functional\AbstractFunctionalTestCase;
 
-/**
- * @ORM\Entity
- * @ORM\Table("sli_user")
- */
-class User
-{
-    /**
-     * @ORM\Column(type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue(strategy="AUTO")
-     */
-    public $id;
-
-    /**
-     * @ORM\Column(type="boolean")
-     */
-    public $isActive;
-
-    /**
-     * @ORM\Column(type="integer")
-     */
-    public $accessLevel;
-
-    /**
-     * @ORM\Column(type="string")
-     */
-    public $email;
-
-    /**
-     * @ORM\ManyToMany(targetEntity="Group", inversedBy="users", cascade={"persist"})
-     */
-    public $groups;
-
-    /**
-     * @ORM\Column(type="string", nullable=true)
-     */
-    public $fullname;
-
-    public function __construct($email = null, $accessLevel = 0, $isActive = true)
-    {
-        $this->email = $email;
-        $this->accessLevel = $accessLevel;
-        $this->isActive = $isActive;
-
-        $this->groups = new ArrayCollection();
-    }
-
-    public function getId()
-    {
-        return $this->id;
-    }
-
-    /**
-     * @param mixed $accessLevel
-     */
-    public function setAccessLevel($accessLevel)
-    {
-        $this->accessLevel = $accessLevel;
-    }
-
-    /**
-     * @param mixed $email
-     */
-    public function setEmail($email)
-    {
-        $this->email = $email;
-    }
-
-    /**
-     * @param mixed $groups
-     */
-    public function setGroups($groups)
-    {
-        $this->groups = $groups;
-    }
-
-    /**
-     * @param mixed $isActive
-     */
-    public function setActive($isActive)
-    {
-        $this->isActive = $isActive;
-    }
-
-    /**
-     * @param mixed $fullname
-     */
-    public function setFullname($fullname)
-    {
-        $this->fullname = $fullname;
-    }
-}
-
-/**
- * @ORM\Entity
- * @ORM\Table("sli_group")
- */
-class Group
-{
-    /**
-     * @ORM\Column(type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue(strategy="AUTO")
-     */
-    public $id;
-
-    /**
-     * @ORM\ManyToMany(targetEntity="User", mappedBy="groups", cascade={"persist"})
-     */
-    public $users;
-
-    /**
-     * @ORM\Column(type="string")
-     */
-    public $name;
-
-    /**
-     * Property with no setter method.
-     *
-     * @ORM\Column(type="integer")
-     */
-    public $usersCount = 0;
-
-    public function __construct($name)
-    {
-        $this->name = $name;
-
-        $this->users = new ArrayCollection();
-    }
-
-    public function getId()
-    {
-        return $this->id;
-    }
-}
+require_once __DIR__ . '/../../Fixtures/entities.php';
 
 /**
  * @author Sergei Lissovski <sergei.lissovski@gmail.com>
  */
-class EntityDataMapperServiceTest extends FunctionalTestCase
+class EntityDataMapperServiceTest extends AbstractFunctionalTestCase
 {
-    /* @var SchemaTool $st */
-    static private $schemaTool;
-    static private $entityClasses = array();
-
     /* @var EntityDataMapperService $mapper */
     private $mapper;
 
     // override
     static public function doSetUpBeforeClass()
     {
-        Toolkit::addAnnotationMetadataDriverForEntityManager(
-            self::$em, __NAMESPACE__, __DIR__
-        );
-
-        self::$entityClasses = array(
-            self::$em->getClassMetadata(__NAMESPACE__ . '\User'),
-            self::$em->getClassMetadata(__NAMESPACE__ . '\Group'),
-        );
-
-        self::$schemaTool = new SchemaTool(self::$em);
-        self::$schemaTool->createSchema(self::$entityClasses);
+        self::createTables();
     }
 
     // override
     static public function doTearDownAfterClass()
     {
-        self::$schemaTool->dropSchema(self::$entityClasses);
+        self::dropTables();
     }
 
     public function doSetUp()
     {
         $this->mapper = self::$container->get('sli_doctrine_entity_data_mapper.mapping.entity_data_mapper');
     }
-
 
     public function testConvertDate()
     {
@@ -240,6 +95,147 @@ class EntityDataMapperServiceTest extends FunctionalTestCase
         $this->assertEquals($userParams['email'], $user->email);
         $this->assertFalse($user->isActive);
         $this->assertEquals(5, $user->accessLevel);
+    }
+
+    public function testMapEntity_BidirectionalOneToOne()
+    {
+        // bidirectional
+        $insurance = new Insurance();
+        $user = new User('jane.doe@example.org');
+
+        self::$em->persist($insurance);
+        self::$em->persist($user);
+        self::$em->flush();
+
+        $params = array(
+            'insurance' => $insurance->id
+        );
+
+        $this->mapper->mapEntity($user, $params, array_keys($params));
+
+        $this->assertInstanceOf(Insurance::clazz(), $user->insurance);
+        $this->assertInstanceOf(User::clazz(), $insurance->user);
+
+        // nulling:
+
+        $params = array(
+            'insurance' => '-'
+        );
+
+        $this->mapper->mapEntity($user, $params, array_keys($params));
+
+        $this->assertNull($user->insurance);
+        $this->assertNull($insurance->user);
+
+        // when it is already nulled and it is attempted to null it again:
+
+        $this->mapper->mapEntity($user, $params, array_keys($params));
+
+        $this->assertNull($user->insurance);
+        $this->assertNull($insurance->user);
+    }
+
+    public function testMapEntity_IndirectionalOneToOne()
+    {
+        $user = new User();
+        $portfolio = new Portfolio();
+
+        self::$em->persist($user);
+        self::$em->persist($portfolio);
+        self::$em->flush();
+
+        $params = array(
+            'portfolio' => $portfolio->id
+        );
+
+        $this->mapper->mapEntity($user, $params, array_keys($params));
+
+        $this->assertInstanceOf(Portfolio::clazz(), $user->portfolio);
+        $this->assertEquals($portfolio->id, $user->portfolio->id);
+
+        // nulling:
+
+        $params = array(
+            'portfolio' => '-'
+        );
+
+        $this->mapper->mapEntity($user, $params, array_keys($params));
+
+        $this->assertNull($user->portfolio);
+    }
+
+    public function testMapEntity_manyToOne()
+    {
+        $portfolio1 = new Portfolio();
+        $portfolio2 = new Portfolio();
+        $project1 = new Project();
+        $project2 = new Project();
+
+        $portfolio1->projects->add($project1);
+        $project1->portfolio = $portfolio1;
+
+        $portfolio1->projects->add($project2);
+        $project2->portfolio = $portfolio1;
+
+        self::$em->persist($portfolio1);
+        self::$em->persist($portfolio2);
+        self::$em->persist($project1);
+        self::$em->persist($project2);
+        self::$em->flush();
+
+        // portfolio2 <-> project1, project2
+
+        $params = array(
+            'portfolio' => $portfolio2->id
+        );
+
+        $this->mapper->mapEntity($project1, $params, array_keys($params));
+
+        $this->assertEquals($project1->portfolio->id, $portfolio2->id);
+        $this->assertEquals(1, count($portfolio1->projects));
+        $this->assertEquals(1, count($portfolio2->projects));
+
+        // nulling:
+
+        $params = array(
+            'portfolio' => '-'
+        );
+
+        $this->mapper->mapEntity($project1, $params, array_keys($params));
+
+        $this->assertNull($project1->portfolio);
+        $this->assertEquals(0, count($portfolio2->projects));
+
+        // nulling something which is already nulled:
+
+        $params = array(
+            'portfolio' => '-'
+        );
+
+        $this->mapper->mapEntity($project1, $params, array_keys($params));
+    }
+
+    public function testMapEntity_oneToMany()
+    {
+        $portfolio = new Portfolio();
+
+        $project1 = new Project();
+        $project2 = new Project();
+
+        self::$em->persist($portfolio);
+        self::$em->persist($project1);
+        self::$em->persist($project2);
+        self::$em->flush();
+
+        $params = array(
+            'projects' => array($project1->id)
+        );
+
+        $this->mapper->mapEntity($portfolio, $params, array_keys($params));
+
+        $this->assertEquals(1, count($portfolio->projects));
+        $this->assertNotNull($project1->portfolio);
+        $this->assertEquals($portfolio->id, $project1->portfolio->id);
     }
 
     public function testMapEntity_manyToMany()

@@ -247,7 +247,7 @@ This what the data mapper service will do for you in this case:
 Everything mentioned about remove/add methods for managing collection also applies when you are dealing with `ManyToMany`
 relation type.
 
-## <a name="complex-values></a>Converting complex values before mapping them onto entities
+## <a name="complex-values"></a>Converting complex values before mapping them onto entities
 
 Sometimes you want to apply some pre-processing before a value is mapped onto an entity. For example, say that
 we have a `User` entity with a string field `fullname` and from client-side we receive an array similar to this

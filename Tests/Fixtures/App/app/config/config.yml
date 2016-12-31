@@ -15,11 +15,11 @@ twig:
 doctrine:
     dbal:
         driver:   pdo_mysql
-        host:     127.0.0.1
-        port:     3306
+        host:     %db_host%
+        port:     %db_port%
         dbname:   sli_doctrineentitydatamapper
-        user:     root
-        password:
+        user:     %db_user%
+        password: %db_password%
         charset:  UTF8
 
     orm:
